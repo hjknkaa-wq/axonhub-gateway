@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
 WORKDIR /build
 RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+RUN --mount=type=cache,id=pnpm-cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
 COPY ./frontend .
@@ -22,8 +22,8 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 COPY go.mod go.sum ./
 COPY llm/go.mod llm/go.sum llm/
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=go-mod-cache,target=/go/pkg/mod \
+    --mount=type=cache,id=go-build-cache,target=/root/.cache/go-build \
     GOTOOLCHAIN=auto go mod download
 
 COPY . .
@@ -33,8 +33,8 @@ ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=go-mod-cache,target=/go/pkg/mod \
+    --mount=type=cache,id=go-build-cache,target=/root/.cache/go-build \
     GOTOOLCHAIN=auto go build \
     -tags=nomsgpack \
     -ldflags "-s -w -X 'github.com/looplj/axonhub/internal/build.Version=$(cat internal/build/VERSION 2>/dev/null || echo dev)' -X 'github.com/looplj/axonhub/internal/build.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" \
